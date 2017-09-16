@@ -56,7 +56,31 @@ class LightSwitchPresenterTest {
         assertThat(view.offStateDisplayed, `is`(true))
     }
 
+    @Test
+    fun viewCanRequestTheLightToTurnOn() {
+        val view = MockLightSwitchView()
+        val model = MockLightSwitchModel()
+        LightSwitchPresenter(view, model)
 
+        model.simulateOffState()
+
+        view.simulateSwitchOn()
+
+        assertThat(model.onStateRequested, `is`(true))
+    }
+
+    @Test
+    fun viewCanRequestTheLightToTurnOff() {
+        val view = MockLightSwitchView()
+        val model = MockLightSwitchModel()
+        LightSwitchPresenter(view, model)
+
+        model.simulateOnState()
+
+        view.simulateSwitchOff()
+
+        assertThat(model.offStateRequested, `is`(true))
+    }
 
     class LightSwitchPresenter(private val view: View, private val model: Model) {
         interface View {
@@ -65,10 +89,14 @@ class LightSwitchPresenterTest {
 
             fun on()
             fun off()
+            fun onSwitchOn(cb: () -> Unit)
+            fun onSwitchOff(cb: () -> Unit)
         }
 
         interface Model {
             fun updateStatus(cb:(Boolean)->Unit)
+            fun turnOn()
+            fun turnOff()
         }
 
         init {
@@ -81,6 +109,14 @@ class LightSwitchPresenterTest {
                     false -> view.off()
                 }
             }
+
+            view.onSwitchOn {
+                model.turnOn()
+            }
+
+            view.onSwitchOff {
+                model.turnOff()
+            }
         }
     }
 
@@ -91,6 +127,9 @@ class LightSwitchPresenterTest {
         var offStateDisplayed:Boolean = false
 
         var enabled:Boolean = false
+        var switchOnCallback: () -> Unit = {}
+
+        var switchOffCallback: () -> Unit = {}
 
         override fun enable() {
             enabled = true
@@ -104,12 +143,32 @@ class LightSwitchPresenterTest {
             onStateDisplayed = true
         }
 
+
         override fun off() {
             offStateDisplayed = true
+        }
+
+        override fun onSwitchOn(cb:()->Unit) {
+            switchOnCallback = cb
+        }
+
+        override fun onSwitchOff(cb:()->Unit) {
+            switchOffCallback = cb
+        }
+
+        fun simulateSwitchOn() {
+            switchOnCallback()
+        }
+
+        fun simulateSwitchOff() {
+            switchOffCallback()
         }
     }
 
     class MockLightSwitchModel : LightSwitchPresenter.Model {
+        var onStateRequested: Boolean = false
+
+        var offStateRequested: Boolean = false
         private var storedUpdateStatusCallback: (Boolean) -> Unit = {}
 
         override fun updateStatus(cb: (Boolean) -> Unit) {
@@ -122,6 +181,14 @@ class LightSwitchPresenterTest {
 
         fun simulateOffState() {
             storedUpdateStatusCallback(false)
+        }
+
+        override fun turnOn() {
+            onStateRequested = true
+        }
+
+        override fun turnOff() {
+            offStateRequested = true
         }
     }
 }
